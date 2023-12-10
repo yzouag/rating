@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rating Widget</title>
+  <style>
+    :root {
+      --selected-color: #ffc800;
+      --unselected-color: #cccccc;
+    }
+  </style>
+</head>
+
+<body>
+  <noscript>
+    <form id="default-form" action="https://httpbin.org/post" method="POST">
+      <label for="rating">How satisfied are you?</label>
+      <input type="hidden" name="question" value="How satisfied are you?">
+      <input type="hidden" name="sendtBy" value="HTML">
+      <input type="number" id="rating" name="rating" min="1" max="5" value="0" required>
+      <button type="submit">Submit</button>
+    </form>
+  </noscript>
+  <rating-widget>
+
+  </rating-widget>
+
+  <script type="module">
+    class RatingWidget extends HTMLElement {
+      constructor() {
+        super();
+
+        this.attachShadow({ mode: "open" });
+        this.shadowRoot.innerHTML = `
+            <style>
+              #rate {
+                display: block;
+                float: left;
+                height: 5rem;
+              }
+              
+              /* hide the radio button */
+              #rate>input {
+                  position: absolute;
+                  width: 0;
+                  height: 0;
+                  visibility: hidden;
+              }
+              
+              /* default attributes for label */
+              #rate>label {
+                  float: right;
+                  width: 2rem;
+                  cursor: pointer;
+              }
+              
+              /* add the star character to the front of empty label */
+              #rate>label::before {
+                  font-size: 2rem;
+                  content: '★ ';
+              }
+              
+              #rate:not(:checked)>label {
+                  color: var(--unselected-color);
+              }
+              
+              #rate>input:checked~label {
+                  color: var(--selected-color);
+                  filter: brightness(100%);
+              }
+              
+              /* for all labels are not checked and at or before the cursor */
+              #rate:not(:checked)>label:hover,
+              #rate:not(:checked)>label:hover~label {
+                  color: var(--selected-color);
+                  filter: brightness(100%);
+              }
+              
+              #rate>input:checked+label:hover,
+              #rate>input:checked+label:hover~label {
+                  color: var(--selected-color);
+                  filter: brightness(50%);
+              }
+            </style>
+            <h1>Rating Widget</h1>
+            <div id="rate">
+              <input type="radio" id="star5" name="rate" value="5" />
+              <label for="star5" title="5 star"></label>
+              <input type="radio" id="star4" name="rate" value="4" />
+              <label for="star4" title="4 star"></label>
+              <input type="radio" id="star3" name="rate" value="3" />
+              <label for="star3" title="3 star"></label>
+              <input type="radio" id="star2" name="rate" value="2" />
+              <label for="star2" title="2 star"></label>
+              <input type="radio" id="star1" name="rate" value="1" />
+              <label for="star1" title="1 star"></label>
+            </div>
+            <div id="config">
+            <input type="color" id="selected"/>
+            <label for="selected">selected star color</label>
+            <input type="color" id="unselected"/>
+            <label for="unselected">unselected star color</label>
+            </div>
+            <p id="result"></p>
+          `;
+
+        const selected = this.shadowRoot.getElementById("selected");
+        selected.setAttribute("value", getComputedStyle(document.documentElement).getPropertyValue("--selected-color"));
+        selected.addEventListener("change", (event) => {
+          document.documentElement.style.setProperty('--selected-color', event.target.value);
+        });
+        const unselected = this.shadowRoot.getElementById("unselected");
+        unselected.setAttribute("value", getComputedStyle(document.documentElement).getPropertyValue("--unselected-color"));
+        unselected.addEventListener("change", (event) => {
+          document.documentElement.style.setProperty('--unselected-color', event.target.value);
+        });
+
+        // set start bar callback
+        const stars = this.shadowRoot.querySelectorAll('#rate>input');
+        stars.forEach(star => {
+          star.addEventListener("click", (e) => {
+            // hide elements
+            const star_bar = this.shadowRoot.getElementById("rate");
+            star_bar.style.display = "none";
+            const config = this.shadowRoot.getElementById("config");
+            config.style.display = "none";
+
+            // get the rating and create the form
+            const rating = e.target.value;
+            const form = new FormData();
+            form.append("SentBy", "JS");
+            form.append("rating", rating);
+            form.append("question", "How satisfied are you?");
+
+            // send the form using fetch api
+            fetch('https://httpbin.org/post', {
+              method: "POST",
+              headers: {
+                "X-Sent-By": "JavaScript",
+              },
+              body: form,
+            })
+              .then(response => response.json())
+              .then(data => {
+                console.log(data);
+                const paragraph = this.shadowRoot.getElementById("result");
+                if (parseInt(data.form.rating) >= 4) {
+                  paragraph.textContent = `Thanks for ${data.form.rating} star rating!`;
+                } else {
+                  paragraph.textContent = `Thanks for your feedback for ${data.form.rating} star. We'll try to do better!`;
+                }
+              })
+              .catch(() => {
+                this.shadowRoot.getElementById("result").textContent = "Fail to submit the rating!";
+              });
+          });
+        });
+      }
+    }
+
+    customElements.define('rating-widget', RatingWidget);
+  </script>
+</body>
+
+</html>
